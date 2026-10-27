@@ -1,0 +1,56 @@
+[
+  {
+    "id": "tomato_early_blight",
+    "filename": "tomato_early_blight.jpg",
+    "crop": "Tomato",
+    "expected_disease": "Early Blight",
+    "display_name": "Tomato Early Blight",
+    "is_healthy": false,
+    "image_url": "/samples/tomato_early_blight.jpg"
+  },
+  {
+    "id": "potato_healthy",
+    "filename": "potato_healthy.jpg",
+    "crop": "Potato",
+    "expected_disease": "Healthy",
+    "display_name": "Potato Healthy Leaf",
+    "is_healthy": true,
+    "image_url": "/samples/potato_healthy.jpg"
+  },
+  {
+    "id": "corn_common_rust",
+    "filename": "corn_common_rust.jpg",
+    "crop": "Corn",
+    "expected_disease": "Common Rust",
+    "display_name": "Corn Common Rust",
+    "is_healthy": false,
+    "image_url": "/samples/corn_common_rust.jpg"
+  },
+  {
+    "id": "apple_scab",
+    "filename": "apple_scab.jpg",
+    "crop": "Apple",
+    "expected_disease": "Scab Leaf",
+    "display_name": "Apple Scab Leaf",
+    "is_healthy": false,
+    "image_url": "/samples/apple_scab.jpg"
+  },
+  {
+    "id": "bell_pepper_healthy",
+    "filename": "bell_pepper_healthy.jpg",
+    "crop": "Bell Pepper",
+    "expected_disease": "Healthy",
+    "display_name": "Bell Pepper Healthy Leaf",
+    "is_healthy": true,
+    "image_url": "/samples/bell_pepper_healthy.jpg"
+  },
+  {
+    "id": "grape_black_rot",
+    "filename": "grape_black_rot.jpg",
+    "crop": "Grape",
+    "expected_disease": "Black Rot",
+    "display_name": "Grape Black Rot",
+    "is_healthy": false,
+    "image_url": "/samples/grape_black_rot.jpg"
+  }
+]

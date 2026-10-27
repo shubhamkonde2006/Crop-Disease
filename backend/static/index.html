@@ -1,0 +1,1881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgriShield - AI Crop Disease Detection & Plant Health System</title>
+  <meta name="description" content="AI-powered plant disease detection from leaf images. Get instant diagnostics, confidence metrics, symptoms, and agronomic management guidance." />
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              200: '#a7f3d0',
+              300: '#6ee7b7',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
+              950: '#022c22',
+            },
+            agri: {
+              gold: '#f59e0b',
+              soil: '#78350f',
+              leaf: '#15803d',
+              sky: '#0284c7',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18, ReactDOM, Babel for JSX -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    @media print {
+      body * { visibility: hidden; }
+      #printable-report, #printable-report * { visibility: visible; }
+      #printable-report { position: absolute; left: 0; top: 0; width: 100%; }
+      .no-print { display: none !important; }
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-brand-500 selection:text-white custom-scrollbar min-h-screen flex flex-col">
+  <div id="root"></div>
+
+  <!-- Main Application Script (Babel/React) -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // ----------------- SVG Icons Component -----------------
+    const Icon = ({ name, className = "w-5 h-5", ...props }) => {
+      const icons = {
+        shield: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+        leaf: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>,
+        upload: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+        camera: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>,
+        checkCircle: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+        alertTriangle: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+        activity: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+        clock: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+        bookOpen: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>,
+        trash2: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>,
+        search: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+        arrowRight: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
+        refreshCw: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>,
+        info: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>,
+        printer: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
+        menu: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
+        x: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+        sparkles: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>,
+        phoneCall: <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
+      };
+      return icons[name] || null;
+    };
+
+    // ----------------- App Component -----------------
+    function App() {
+      const [currentRoute, setCurrentRoute] = useState('landing'); // 'landing', 'detect', 'results', 'dashboard', 'history', 'knowledge'
+      const [currentScanId, setCurrentScanId] = useState(null);
+      const [activeResult, setActiveResult] = useState(null);
+      const [crops, setCrops] = useState([]);
+      const [samples, setSamples] = useState([]);
+      const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+      const [systemStatus, setSystemStatus] = useState({ online: true, modelLoaded: true });
+
+      // Hash navigation sync
+      useEffect(() => {
+        const handleHash = () => {
+          const hash = window.location.hash.replace('#/', '').replace('#', '');
+          if (hash.startsWith('results/')) {
+            const scanId = hash.split('/')[1];
+            setCurrentScanId(scanId);
+            setCurrentRoute('results');
+          } else if (['detect', 'dashboard', 'history', 'knowledge', 'landing'].includes(hash)) {
+            setCurrentRoute(hash);
+          } else if (!hash) {
+            setCurrentRoute('landing');
+          }
+        };
+
+        handleHash();
+        window.addEventListener('hashchange', handleHash);
+        return () => window.removeEventListener('hashchange', handleHash);
+      }, []);
+
+      const navigateTo = (route, scanId = null) => {
+        setMobileMenuOpen(false);
+        if (route === 'results' && scanId) {
+          window.location.hash = `#/results/${scanId}`;
+          setCurrentScanId(scanId);
+          setCurrentRoute('results');
+        } else {
+          window.location.hash = `#/${route}`;
+          setCurrentRoute(route);
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      // Fetch initial metadata
+      useEffect(() => {
+        fetch('/api/v1/crops')
+          .then(res => res.json())
+          .then(data => setCrops(data))
+          .catch(err => console.error("Failed to load crops", err));
+
+        fetch('/api/v1/samples')
+          .then(res => res.json())
+          .then(data => setSamples(data))
+          .catch(err => console.error("Failed to load samples", err));
+
+        fetch('/api/v1/health')
+          .then(res => res.json())
+          .then(data => setSystemStatus({ online: true, modelLoaded: data.model_loaded }))
+          .catch(() => setSystemStatus({ online: false, modelLoaded: false }));
+      }, []);
+
+      return (
+        <div className="flex flex-col min-h-screen">
+          {/* Navigation Bar */}
+          <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+              {/* Logo */}
+              <div 
+                onClick={() => navigateTo('landing')}
+                className="flex items-center gap-2.5 cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-brand-800 text-white flex items-center justify-center shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform">
+                  <Icon name="shield" className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-extrabold text-xl tracking-tight text-slate-900">Agri<span className="text-brand-600">Shield</span></span>
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-brand-100 text-brand-800 border border-brand-200">AI</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 -mt-1 font-medium hidden sm:block">Crop Disease Diagnostics</p>
+                </div>
+              </div>
+
+              {/* Desktop Nav Links */}
+              <nav className="hidden md:flex items-center gap-1">
+                {[
+                  { id: 'landing', label: 'Home', icon: 'leaf' },
+                  { id: 'detect', label: 'Detect Disease', icon: 'camera', primary: true },
+                  { id: 'dashboard', label: 'Dashboard', icon: 'activity' },
+                  { id: 'history', label: 'Scan History', icon: 'clock' },
+                  { id: 'knowledge', label: 'Knowledge Base', icon: 'bookOpen' },
+                ].map(item => {
+                  const isActive = currentRoute === item.id;
+                  if (item.primary) {
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => navigateTo(item.id)}
+                        className="ml-2 flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm shadow-sm transition-all hover:shadow hover:shadow-brand-500/25 active:scale-95"
+                      >
+                        <Icon name={item.icon} className="w-4 h-4" />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  }
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => navigateTo(item.id)}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive 
+                          ? 'bg-slate-100 text-brand-700 font-semibold' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Icon name={item.icon} className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+
+              {/* Status Badge & Mobile Hamburger */}
+              <div className="flex items-center gap-3">
+                <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-[11px] text-slate-600 font-mono">
+                  <span className={`w-2 h-2 rounded-full ${systemStatus.online ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                  <span>PyTorch CPU Ready</span>
+                </div>
+
+                <button 
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100"
+                  aria-label="Toggle Navigation"
+                >
+                  <Icon name={mobileMenuOpen ? 'x' : 'menu'} className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile Navigation Drawer */}
+            {mobileMenuOpen && (
+              <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-2 pb-4 space-y-1">
+                {[
+                  { id: 'landing', label: 'Home', icon: 'leaf' },
+                  { id: 'detect', label: 'Detect Disease', icon: 'camera' },
+                  { id: 'dashboard', label: 'Dashboard & Analytics', icon: 'activity' },
+                  { id: 'history', label: 'Scan History', icon: 'clock' },
+                  { id: 'knowledge', label: 'Disease Knowledge Base', icon: 'bookOpen' },
+                ].map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => navigateTo(item.id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${
+                      currentRoute === item.id 
+                        ? 'bg-brand-50 text-brand-700 font-semibold' 
+                        : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Icon name={item.icon} className="w-5 h-5 text-brand-600" />
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </header>
+
+          {/* Main Route Content */}
+          <main className="flex-1">
+            {currentRoute === 'landing' && (
+              <LandingPage 
+                navigateTo={navigateTo} 
+                crops={crops} 
+                samples={samples} 
+              />
+            )}
+            {currentRoute === 'detect' && (
+              <DetectionPage 
+                navigateTo={navigateTo} 
+                crops={crops} 
+                samples={samples} 
+                setActiveResult={setActiveResult}
+              />
+            )}
+            {currentRoute === 'results' && (
+              <ResultsPage 
+                scanId={currentScanId} 
+                initialResult={activeResult} 
+                navigateTo={navigateTo} 
+              />
+            )}
+            {currentRoute === 'dashboard' && (
+              <DashboardPage navigateTo={navigateTo} />
+            )}
+            {currentRoute === 'history' && (
+              <HistoryPage navigateTo={navigateTo} />
+            )}
+            {currentRoute === 'knowledge' && (
+              <KnowledgePage crops={crops} />
+            )}
+          </main>
+
+          {/* Footer */}
+          <footer className="bg-slate-900 text-slate-400 text-xs border-t border-slate-800 no-print mt-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-white font-bold text-base">
+                    <Icon name="shield" className="w-5 h-5 text-brand-400" />
+                    <span>AgriShield AI</span>
+                  </div>
+                  <p className="text-slate-400 leading-relaxed">
+                    AI-powered foliar disease diagnostic system supporting sustainable agriculture and responsible crop protection.
+                  </p>
+                  <p className="text-[11px] text-slate-500 font-mono">MobileNetV3 PyTorch Inference Engine</p>
+                </div>
+
+                <div>
+                  <h4 className="text-white font-semibold mb-3 text-sm">Quick Links</h4>
+                  <ul className="space-y-2">
+                    <li><button onClick={() => navigateTo('detect')} className="hover:text-white transition-colors">Start Disease Scan</button></li>
+                    <li><button onClick={() => navigateTo('dashboard')} className="hover:text-white transition-colors">Farm Activity Analytics</button></li>
+                    <li><button onClick={() => navigateTo('history')} className="hover:text-white transition-colors">Scan Records History</button></li>
+                    <li><button onClick={() => navigateTo('knowledge')} className="hover:text-white transition-colors">Disease Knowledge Catalog</button></li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="text-white font-semibold mb-3 text-sm">Supported Crops ({crops.length || 14})</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(crops.length > 0 ? crops : ['Apple', 'Corn', 'Grape', 'Potato', 'Tomato', 'Bell Pepper', 'Peach', 'Orange']).map(c => (
+                      <span key={c} className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[11px] border border-slate-700">{c}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-white font-semibold text-sm">Advisory & Ethics</h4>
+                  <div className="p-3 rounded-lg bg-slate-800/80 border border-slate-700 text-[11px] text-slate-300 leading-relaxed">
+                    <span className="font-semibold text-amber-400 block mb-1">Notice to Farmers:</span>
+                    This application provides diagnostic decision support based on statistical computer vision. Always confirm symptoms with your local agricultural extension agent before applying chemical controls.
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500">
+                <p>© {new Date().getFullYear()} AgriShield System. Built for agricultural excellence.</p>
+                <p>PlantVillage 38-Class Benchmark Taxonomy · PyTorch 2.13 CPU Engine</p>
+              </div>
+            </div>
+          </footer>
+        </div>
+      );
+    }
+
+    // ----------------- LANDING PAGE COMPONENT -----------------
+    function LandingPage({ navigateTo, crops, samples }) {
+      return (
+        <div>
+          {/* Hero Section */}
+          <section className="relative overflow-hidden bg-gradient-to-b from-brand-50/60 via-white to-slate-50 pt-12 pb-20 md:pt-20 md:pb-28 border-b border-slate-200">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center max-w-3xl mx-auto space-y-6">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-100 text-brand-800 border border-brand-200 text-xs font-semibold shadow-sm">
+                  <Icon name="sparkles" className="w-4 h-4 text-brand-600" />
+                  <span>Next-Generation Foliar AI Diagnostics</span>
+                </div>
+
+                <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.15]">
+                  Identify Plant Diseases in <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-emerald-600">Seconds</span>
+                </h1>
+
+                <p className="text-lg sm:text-xl text-slate-600 leading-relaxed font-normal">
+                  Capture or upload leaf images to diagnose crop pathogens with neural computer vision. Access symptoms, biological causes, and verified treatment guidance built for farmers and agronomists.
+                </p>
+
+                {/* CTAs */}
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+                  <button
+                    onClick={() => navigateTo('detect')}
+                    className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-base shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Icon name="camera" className="w-5 h-5" />
+                    <span>Detect Disease Now</span>
+                  </button>
+
+                  <button
+                    onClick={() => navigateTo('knowledge')}
+                    className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-base border border-slate-300 shadow-sm flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Icon name="bookOpen" className="w-5 h-5 text-slate-500" />
+                    <span>Explore Disease Catalog</span>
+                  </button>
+                </div>
+
+                {/* Badges */}
+                <div className="pt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-500">
+                  <div className="flex items-center gap-1.5">
+                    <Icon name="checkCircle" className="w-4 h-4 text-brand-600" />
+                    <span className="font-medium text-slate-700">14 Major Crops</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Icon name="checkCircle" className="w-4 h-4 text-brand-600" />
+                    <span className="font-medium text-slate-700">38 Disease Profiles</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Icon name="checkCircle" className="w-4 h-4 text-brand-600" />
+                    <span className="font-medium text-slate-700">Calibrated Uncertainty Checks</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Icon name="checkCircle" className="w-4 h-4 text-brand-600" />
+                    <span className="font-medium text-slate-700">Mobile-Ready</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* How It Works Section */}
+          <section className="py-20 bg-white border-b border-slate-200">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center max-w-2xl mx-auto mb-16">
+                <h2 className="text-xs uppercase font-bold tracking-widest text-brand-600 mb-2">Simple Workflow</h2>
+                <h3 className="text-3xl font-extrabold text-slate-900">How AgriShield Works</h3>
+                <p className="text-slate-600 mt-3 text-sm">Three fast steps to move from an affected plant leaf to an actionable management plan.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {[
+                  {
+                    step: '01',
+                    title: 'Capture or Upload Leaf',
+                    desc: 'Take a clear photograph of the upper or lower leaf surface in bright natural light, or choose an existing photo from your device.',
+                    icon: 'camera'
+                  },
+                  {
+                    step: '02',
+                    title: 'Neural Vision Analysis',
+                    desc: 'MobileNetV3 extracts foliar texture, lesion edges, and chlorosis patterns to calculate class probabilities and evaluate uncertainty.',
+                    icon: 'activity'
+                  },
+                  {
+                    step: '03',
+                    title: 'Actionable Treatment Plan',
+                    desc: 'Receive disease confirmation, symptoms list, cultural prevention steps, organic management actions, and extension advice.',
+                    icon: 'shield'
+                  }
+                ].map(item => (
+                  <div key={item.step} className="relative p-7 rounded-2xl bg-slate-50 border border-slate-200 hover:border-brand-300 hover:shadow-md transition-all group">
+                    <div className="text-3xl font-extrabold text-brand-600/30 mb-3 font-mono">{item.step}</div>
+                    <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 text-brand-600 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-sm">
+                      <Icon name={item.icon} className="w-6 h-6" />
+                    </div>
+                    <h4 className="text-lg font-bold text-slate-900 mb-2">{item.title}</h4>
+                    <p className="text-sm text-slate-600 leading-relaxed">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Supported Crops Showcase */}
+          <section className="py-20 bg-slate-50 border-b border-slate-200">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
+                <div>
+                  <h2 className="text-xs uppercase font-bold tracking-widest text-brand-600 mb-2">Taxonomy Coverage</h2>
+                  <h3 className="text-3xl font-extrabold text-slate-900">Supported Crops & Pathogens</h3>
+                  <p className="text-slate-600 mt-2 text-sm">Covering key agricultural commodities against fungi, bacteria, viruses, and mites.</p>
+                </div>
+                <button
+                  onClick={() => navigateTo('knowledge')}
+                  className="mt-4 md:mt-0 text-sm font-semibold text-brand-700 hover:text-brand-800 flex items-center gap-1.5"
+                >
+                  <span>View All 38 Disease Profiles</span>
+                  <Icon name="arrowRight" className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {[
+                  { name: 'Tomato', conditions: '10 conditions', examples: 'Early Blight, Late Blight, Mosaic Virus, Septoria' },
+                  { name: 'Potato', conditions: '3 conditions', examples: 'Early Blight, Late Blight, Healthy' },
+                  { name: 'Corn (Maize)', conditions: '4 conditions', examples: 'Common Rust, Gray Leaf Spot, Northern Blight' },
+                  { name: 'Apple', conditions: '4 conditions', examples: 'Apple Scab, Black Rot, Cedar Apple Rust' },
+                  { name: 'Grape', conditions: '4 conditions', examples: 'Black Rot, Esca (Black Measles), Leaf Blight' },
+                  { name: 'Bell Pepper', conditions: '2 conditions', examples: 'Bacterial Spot, Healthy' },
+                  { name: 'Orange', conditions: '1 condition', examples: 'Citrus Greening (Huanglongbing)' },
+                  { name: 'Peach', conditions: '2 conditions', examples: 'Bacterial Spot, Healthy' },
+                ].map(c => (
+                  <div key={c.name} className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition-shadow">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-bold text-slate-900">{c.name}</span>
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">{c.conditions}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">{c.examples}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Benefits Section */}
+          <section className="py-20 bg-white border-b border-slate-200">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div className="space-y-6">
+                  <div className="inline-block text-xs uppercase font-bold tracking-widest text-brand-600">Farmer Advantages</div>
+                  <h3 className="text-3xl sm:text-4xl font-extrabold text-slate-900 leading-tight">
+                    Protecting Farm Yields through Timely Agronomic Intelligence
+                  </h3>
+                  <p className="text-slate-600 leading-relaxed">
+                    Crop diseases account for an estimated 20-40% of global agricultural yield losses. AgriShield empowers growers with rapid scouting assistance right in the palm of their hand.
+                  </p>
+
+                  <div className="space-y-4 pt-2">
+                    {[
+                      { title: 'Early Infection Interception', desc: 'Detect foliar symptoms before pathogens spread systemically through field rows.' },
+                      { title: 'Lower Input Costs & Avoid Blind Spraying', desc: 'Identify the exact pathogen type so you do not waste expensive chemicals on fungal treatments for bacterial or viral diseases.' },
+                      { title: 'Integrated Pest Management (IPM)', desc: 'Prioritize cultural sanitation, resistant varieties, and bio-fungicides to preserve soil biodiversity.' },
+                      { title: 'Transparent Uncertainty Metrics', desc: 'Know when the model is confident vs when human expert confirmation is recommended.' },
+                    ].map(b => (
+                      <div key={b.title} className="flex items-start gap-3.5">
+                        <div className="mt-1 w-5 h-5 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center shrink-0">
+                          <Icon name="checkCircle" className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-900">{b.title}</h4>
+                          <p className="text-xs text-slate-600 mt-0.5">{b.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-8 rounded-2xl bg-gradient-to-br from-brand-900 to-slate-900 text-white shadow-xl">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                      <Icon name="shield" className="w-6 h-6 text-brand-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-base">Responsible Agricultural AI</h4>
+                      <p className="text-xs text-slate-300">Safety & Governance Commitments</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 text-xs text-slate-300 leading-relaxed">
+                    <p className="p-3.5 rounded-lg bg-white/5 border border-white/10">
+                      <strong className="text-amber-400 block mb-1">Human-in-the-Loop Decision Support:</strong>
+                      AgriShield is an observational diagnostic aid, not a laboratory microbiological culture. Confidence scores reflect statistical feature similarity, never absolute certainty.
+                    </p>
+                    <p className="p-3.5 rounded-lg bg-white/5 border border-white/10">
+                      <strong className="text-emerald-400 block mb-1">Pesticide Dosage Safeguards:</strong>
+                      We intentionally avoid dispensing arbitrary chemical pesticide dosage recipes. All treatments reference registered IPM principles and mandate consulting licensed agricultural extension agents.
+                    </p>
+                    <p className="p-3.5 rounded-lg bg-white/5 border border-white/10">
+                      <strong className="text-sky-400 block mb-1">Out-Of-Distribution Rejection:</strong>
+                      Images lacking characteristic foliar color spectrum or exhibiting high camera blur are flagged with uncertainty warnings to protect against false diagnoses.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => navigateTo('detect')}
+                    className="mt-6 w-full py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm shadow transition-colors"
+                  >
+                    Launch Diagnostic Scanner
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      );
+    }
+
+    // ----------------- DETECTION PAGE COMPONENT -----------------
+    function DetectionPage({ navigateTo, crops, samples, setActiveResult }) {
+      const [selectedCrop, setSelectedCrop] = useState('');
+      const [selectedFile, setSelectedFile] = useState(null);
+      const [previewUrl, setPreviewUrl] = useState(null);
+      const [imageMeta, setImageMeta] = useState(null);
+      const [isDragging, setIsDragging] = useState(false);
+      const [isAnalyzing, setIsAnalyzing] = useState(false);
+      const [analysisStage, setAnalysisStage] = useState('');
+      const [errorMessage, setErrorMessage] = useState(null);
+      const fileInputRef = useRef(null);
+      const cameraInputRef = useRef(null);
+
+      // Handle file selection
+      const handleFile = (file) => {
+        setErrorMessage(null);
+        if (!file) return;
+
+        // Validation
+        const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+          setErrorMessage("Unsupported file format. Please upload a JPEG, PNG, or WebP image.");
+          return;
+        }
+
+        const maxBytes = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxBytes) {
+          setErrorMessage("File exceeds the 10 MB maximum upload limit.");
+          return;
+        }
+
+        setSelectedFile(file);
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
+
+        // Get dimensions
+        const img = new Image();
+        img.onload = () => {
+          setImageMeta({
+            width: img.width,
+            height: img.height,
+            sizeMb: (file.size / (1024 * 1024)).toFixed(2)
+          });
+        };
+        img.src = url;
+      };
+
+      const handleDrop = (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleFile(e.dataTransfer.files[0]);
+        }
+      };
+
+      const clearImage = () => {
+        setSelectedFile(null);
+        setPreviewUrl(null);
+        setImageMeta(null);
+        setErrorMessage(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        if (cameraInputRef.current) cameraInputRef.current.value = '';
+      };
+
+      // Run prediction
+      const runDetection = async () => {
+        if (!selectedFile) {
+          setErrorMessage("Please select or capture a plant leaf image first.");
+          return;
+        }
+
+        setIsAnalyzing(true);
+        setErrorMessage(null);
+
+        // Visual progress stage simulation
+        const stages = [
+          "Verifying image integrity & dimensions...",
+          "Checking foliar spectrum & leaf texture...",
+          "Running PyTorch MobileNetV3 inference...",
+          "Calculating calibrated entropy & alternatives...",
+          "Retrieving agronomic treatment guidance..."
+        ];
+
+        let sIdx = 0;
+        setAnalysisStage(stages[0]);
+        const stageInterval = setInterval(() => {
+          sIdx++;
+          if (sIdx < stages.length) {
+            setAnalysisStage(stages[sIdx]);
+          }
+        }, 350);
+
+        try {
+          const formData = new FormData();
+          formData.append('file', selectedFile);
+          if (selectedCrop) {
+            formData.append('crop', selectedCrop);
+          }
+
+          const res = await fetch('/api/v1/predict', {
+            method: 'POST',
+            body: formData
+          });
+
+          clearInterval(stageInterval);
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || `Server error (${res.status})`);
+          }
+
+          const result = await res.json();
+          setActiveResult(result);
+          navigateTo('results', result.id);
+        } catch (err) {
+          clearInterval(stageInterval);
+          setIsAnalyzing(false);
+          setErrorMessage(err.message || "Failed to complete leaf analysis. Please try again.");
+        }
+      };
+
+      // Run sample leaf test
+      const runSample = async (sample) => {
+        setIsAnalyzing(true);
+        setErrorMessage(null);
+        setAnalysisStage(`Testing sample: ${sample.display_name}...`);
+
+        try {
+          const res = await fetch('/api/v1/predict/sample', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sample_id: sample.id, crop: sample.crop })
+          });
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || "Sample analysis failed.");
+          }
+
+          const result = await res.json();
+          setActiveResult(result);
+          navigateTo('results', result.id);
+        } catch (err) {
+          setIsAnalyzing(false);
+          setErrorMessage(err.message || "Sample test failed.");
+        }
+      };
+
+      return (
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="mb-8">
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">AI Crop Disease Scanner</h1>
+            <p className="text-slate-600 text-sm mt-1">Upload a high-resolution photo of a crop leaf or test with our curated sample library.</p>
+          </div>
+
+          {/* Error Banner */}
+          {errorMessage && (
+            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm flex items-start gap-3 animate-fade-in">
+              <Icon name="alertTriangle" className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="font-bold block">Analysis Failed</span>
+                <span>{errorMessage}</span>
+              </div>
+              <button onClick={() => setErrorMessage(null)} className="text-red-500 hover:text-red-700">
+                <Icon name="x" className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left 2 Cols: Dropzone & Image Selection */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Crop Filter Selector */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Select Crop (Optional Hint)
+                </label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <select
+                    value={selectedCrop}
+                    onChange={(e) => setSelectedCrop(e.target.value)}
+                    className="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  >
+                    <option value="">Auto-Detect Crop (Any of 14 Supported Crops)</option>
+                    {crops.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  {selectedCrop && (
+                    <button
+                      onClick={() => setSelectedCrop('')}
+                      className="text-xs text-slate-500 hover:text-slate-800 px-3 py-2 border border-slate-200 rounded-xl"
+                    >
+                      Clear Filter
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Specifying a crop constrains the search space to that crop's specific diseases for maximum precision.
+                </p>
+              </div>
+
+              {/* Upload Dropzone */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                className={`relative rounded-2xl border-2 border-dashed transition-all p-8 flex flex-col items-center justify-center text-center ${
+                  isDragging
+                    ? 'border-brand-500 bg-brand-50/50'
+                    : previewUrl
+                    ? 'border-slate-300 bg-white'
+                    : 'border-slate-300 bg-white hover:border-brand-400 hover:bg-slate-50/60'
+                }`}
+              >
+                {/* Hidden Native File Inputs */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+                  className="hidden"
+                />
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+                  className="hidden"
+                />
+
+                {!previewUrl ? (
+                  <div className="space-y-4 py-6">
+                    <div className="w-16 h-16 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto border border-brand-100 shadow-sm">
+                      <Icon name="upload" className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">Drag & drop your leaf photo here</h3>
+                      <p className="text-xs text-slate-500 mt-1">Accepts JPEG, PNG, or WebP files up to 10 MB</p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-2"
+                      >
+                        <Icon name="upload" className="w-4 h-4" />
+                        <span>Browse Files</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold border border-slate-300 transition-colors flex items-center gap-2"
+                      >
+                        <Icon name="camera" className="w-4 h-4 text-slate-600" />
+                        <span>Take Photo (Mobile)</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full space-y-4">
+                    <div className="relative max-h-96 overflow-hidden rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center">
+                      <img
+                        src={previewUrl}
+                        alt="Leaf preview"
+                        className="max-h-96 w-auto object-contain rounded-xl"
+                      />
+                      <button
+                        onClick={clearImage}
+                        className="absolute top-3 right-3 p-2 rounded-full bg-slate-900/80 text-white hover:bg-slate-900 transition-colors shadow"
+                        title="Remove image"
+                      >
+                        <Icon name="x" className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {imageMeta && (
+                      <div className="flex items-center justify-between text-xs text-slate-500 px-2 font-mono">
+                        <span>{imageMeta.width} × {imageMeta.height} px</span>
+                        <span>{imageMeta.sizeMb} MB</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 border border-slate-200"
+                      >
+                        Replace Image
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isAnalyzing}
+                        onClick={runDetection}
+                        className="px-7 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-sm font-bold shadow-md shadow-brand-500/25 flex items-center gap-2 transition-all hover:scale-[1.02]"
+                      >
+                        <Icon name="sparkles" className="w-4 h-4" />
+                        <span>Run AI Disease Analysis</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Loading Overlay */}
+              {isAnalyzing && (
+                <div className="p-6 rounded-2xl bg-brand-900 text-white shadow-xl space-y-4 animate-fade-in">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin" />
+                    <div>
+                      <h4 className="font-bold text-sm">Processing Foliar Neural Pipeline</h4>
+                      <p className="text-xs text-brand-200 font-mono mt-0.5">{analysisStage}</p>
+                    </div>
+                  </div>
+                  <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-gradient-to-r from-brand-400 to-emerald-300 h-full rounded-full animate-pulse w-3/4" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right Column: 1-Click Samples & Photo Tips */}
+            <div className="space-y-6">
+              {/* Sample Images Gallery */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">1-Click Test Samples</h3>
+                  <span className="text-[10px] text-slate-500 font-mono">Instant Demo</span>
+                </div>
+                <p className="text-xs text-slate-600">Don't have a leaf image ready? Test the full PyTorch ML pipeline on real curated leaves:</p>
+
+                <div className="space-y-2.5">
+                  {samples.map(s => (
+                    <div
+                      key={s.id}
+                      onClick={() => !isAnalyzing && runSample(s)}
+                      className="group flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/40 cursor-pointer transition-all"
+                    >
+                      <img
+                        src={s.image_url}
+                        alt={s.display_name}
+                        className="w-12 h-12 rounded-lg object-cover border border-slate-200 group-hover:scale-105 transition-transform shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs text-slate-900 group-hover:text-brand-700 truncate">{s.display_name}</span>
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${s.expected_disease === 'Healthy' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {s.expected_disease === 'Healthy' ? 'Healthy' : 'Diseased'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 truncate mt-0.5">{s.crop} · Click to run</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Best Practices for Leaf Photography */}
+              <div className="bg-slate-100 p-5 rounded-2xl border border-slate-200 space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                  <Icon name="info" className="w-4 h-4 text-brand-600" />
+                  <span>Tips for High Accuracy</span>
+                </h4>
+                <ul className="text-xs text-slate-600 space-y-2 leading-relaxed">
+                  <li className="flex items-start gap-2">
+                    <span className="text-brand-600 font-bold">•</span>
+                    <span><strong>Good Lighting:</strong> Capture in diffused natural daylight; avoid strong shadows or flash glare.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-brand-600 font-bold">•</span>
+                    <span><strong>Sharp Focus:</strong> Ensure veins and lesion margins are in crisp focus, not blurred.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-brand-600 font-bold">•</span>
+                    <span><strong>Single Leaf:</strong> Fill the camera frame primarily with the affected plant leaf.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------- RESULTS PAGE COMPONENT -----------------
+    function ResultsPage({ scanId, initialResult, navigateTo }) {
+      const [result, setResult] = useState(initialResult);
+      const [loading, setLoading] = useState(!initialResult);
+      const [error, setError] = useState(null);
+      const [activeTab, setActiveTab] = useState('symptoms'); // 'symptoms', 'causes', 'prevention', 'management', 'expert'
+
+      useEffect(() => {
+        if (!result && scanId) {
+          setLoading(true);
+          fetch(`/api/v1/history/${scanId}`)
+            .then(res => {
+              if (!res.ok) throw new Error("Could not retrieve past scan record.");
+              return res.json();
+            })
+            .then(data => {
+              setResult(data);
+              setLoading(false);
+            })
+            .catch(err => {
+              setError(err.message);
+              setLoading(false);
+            });
+        }
+      }, [scanId]);
+
+      if (loading) {
+        return (
+          <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
+            <div className="w-10 h-10 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-sm text-slate-600">Loading diagnostic record...</p>
+          </div>
+        );
+      }
+
+      if (error || !result) {
+        return (
+          <div className="max-w-2xl mx-auto px-4 py-16 text-center space-y-4">
+            <Icon name="alertTriangle" className="w-12 h-12 text-red-500 mx-auto" />
+            <h2 className="text-xl font-bold text-slate-900">Diagnosis Record Not Found</h2>
+            <p className="text-sm text-slate-600">{error || "The requested prediction record could not be loaded."}</p>
+            <button
+              onClick={() => navigateTo('detect')}
+              className="px-5 py-2.5 rounded-xl bg-brand-600 text-white font-semibold text-sm"
+            >
+              Scan a Leaf
+            </button>
+          </div>
+        );
+      }
+
+      const confPercent = (result.confidence * 100).toFixed(1);
+      const isHealthy = result.is_healthy;
+      const guidance = result.guidance || {};
+
+      return (
+        <div id="printable-report" className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+          {/* Top Bar Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print border-b border-slate-200 pb-4">
+            <div>
+              <button
+                onClick={() => navigateTo('detect')}
+                className="text-xs font-semibold text-brand-700 hover:text-brand-800 flex items-center gap-1.5"
+              >
+                <span>← Back to Scanner</span>
+              </button>
+              <h1 className="text-2xl font-extrabold text-slate-900 mt-1">Diagnostic Report</h1>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => window.print()}
+                className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs border border-slate-300 shadow-sm flex items-center gap-1.5"
+              >
+                <Icon name="printer" className="w-4 h-4 text-slate-500" />
+                <span>Print / Save PDF</span>
+              </button>
+              <button
+                onClick={() => navigateTo('detect')}
+                className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs shadow-sm flex items-center gap-1.5"
+              >
+                <Icon name="camera" className="w-4 h-4" />
+                <span>Scan Another Leaf</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Uncertainty / Quality Alert Banner */}
+          {(result.is_uncertain || result.ood_warning) && (
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm flex items-start gap-3">
+              <Icon name="alertTriangle" className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-bold">Advisory: Elevated Prediction Uncertainty</span>
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  {result.ood_warning || "The model confidence score is moderate or the foliar texture presents ambiguity. Please verify symptoms visually and consider taking a second well-lit close-up photo."}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Main Diagnosis Hero Card */}
+          <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+              {/* Leaf Thumbnail */}
+              <div className="md:col-span-1">
+                <div className="rounded-2xl overflow-hidden border border-slate-200 shadow bg-slate-100 max-h-72 flex items-center justify-center">
+                  <img
+                    src={result.image_url}
+                    alt={result.display_name}
+                    className="w-full h-auto max-h-72 object-contain"
+                  />
+                </div>
+              </div>
+
+              {/* Diagnosis Findings */}
+              <div className="md:col-span-2 space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
+                    {result.crop}
+                  </span>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                    isHealthy 
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                      : 'bg-red-100 text-red-800 border border-red-200'
+                  }`}>
+                    {isHealthy ? 'HEALTHY FOLIAGE' : 'DISEASE DETECTED'}
+                  </span>
+                  {guidance.severity && (
+                    <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold uppercase">
+                      Severity: {guidance.severity}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                    {result.disease_name}
+                  </h2>
+                  {guidance.pathogen && (
+                    <p className="text-xs text-slate-500 font-mono mt-1">
+                      Pathogen: {guidance.pathogen}
+                    </p>
+                  )}
+                </div>
+
+                {/* Confidence Meter Bar */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-700">Model Confidence</span>
+                    <span className="font-extrabold font-mono text-brand-700 text-sm">{confPercent}%</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        result.confidence > 0.75 
+                          ? 'bg-emerald-500' 
+                          : result.confidence > 0.45 
+                          ? 'bg-amber-500' 
+                          : 'bg-red-500'
+                      }`}
+                      style={{ width: `${Math.max(5, result.confidence * 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-500">
+                    <span>Low Confidence</span>
+                    <span>Moderate</span>
+                    <span>High Confidence</span>
+                  </div>
+                </div>
+
+                {/* Technical Diagnostic Metadata */}
+                <div className="flex flex-wrap gap-4 text-[11px] text-slate-500 font-mono pt-1">
+                  <span>Latency: {result.processing_time_ms}ms</span>
+                  <span>Engine: {result.model_version}</span>
+                  <span>Scan ID: {result.id.slice(0, 8)}...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Top-5 Alternative Hypotheses */}
+          {result.alternatives && result.alternatives.length > 0 && (
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                Alternative Model Hypotheses
+              </h3>
+              <p className="text-xs text-slate-500">
+                Probability distribution across next candidate classes. Demonstrates model ranking transparency:
+              </p>
+              <div className="space-y-3">
+                {result.alternatives.map((alt, i) => {
+                  const pct = (alt.confidence * 100).toFixed(1);
+                  return (
+                    <div key={alt.class_id || i} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-slate-800">{alt.display_name}</span>
+                        <span className="font-mono text-slate-600">{pct}%</span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className="bg-slate-400 h-full rounded-full"
+                          style={{ width: `${Math.max(2, alt.confidence * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Agronomic Management Guidance Tabs */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            {/* Tab Bar */}
+            <div className="flex border-b border-slate-200 bg-slate-50 overflow-x-auto">
+              {[
+                { id: 'symptoms', label: 'Symptoms' },
+                { id: 'causes', label: 'Causes & Vectors' },
+                { id: 'prevention', label: 'Prevention Practices' },
+                { id: 'management', label: 'General Management' },
+                { id: 'expert', label: 'Expert Referral' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-5 py-3.5 text-xs font-bold whitespace-nowrap transition-colors border-b-2 ${
+                    activeTab === tab.id
+                      ? 'border-brand-600 text-brand-700 bg-white'
+                      : 'border-transparent text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Body */}
+            <div className="p-6 sm:p-8">
+              {activeTab === 'symptoms' && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-slate-900">Characteristic Visual Symptoms</h4>
+                  <ul className="space-y-2.5">
+                    {(guidance.common_symptoms || []).map((s, idx) => (
+                      <li key={idx} className="flex items-start gap-3 text-sm text-slate-700">
+                        <span className="w-5 h-5 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                          {idx + 1}
+                        </span>
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {activeTab === 'causes' && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-slate-900">Contributing Environmental Factors & Vectors</h4>
+                  <ul className="space-y-2.5">
+                    {(guidance.contributing_factors || []).map((f, idx) => (
+                      <li key={idx} className="flex items-start gap-3 text-sm text-slate-700">
+                        <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                          !
+                        </span>
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {activeTab === 'prevention' && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-slate-900">Cultural & Preventive Practices</h4>
+                  <ul className="space-y-2.5">
+                    {(guidance.prevention_practices || []).map((p, idx) => (
+                      <li key={idx} className="flex items-start gap-3 text-sm text-slate-700">
+                        <Icon name="checkCircle" className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                        <span>{p}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {activeTab === 'management' && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-slate-900">Field Management & Biological Controls</h4>
+                  <ul className="space-y-2.5">
+                    {(guidance.general_management || []).map((m, idx) => (
+                      <li key={idx} className="flex items-start gap-3 text-sm text-slate-700">
+                        <span className="w-5 h-5 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                          ✓
+                        </span>
+                        <span>{m}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {activeTab === 'expert' && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3">
+                    <Icon name="phoneCall" className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-slate-900">Agricultural Extension Advisory</h4>
+                      <p className="text-xs text-slate-700 leading-relaxed">
+                        {guidance.expert_guidance}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Always consult your state university agricultural extension office or a Certified Crop Advisor (CCA) before applying restricted synthetic chemicals. They provide current local resistance tracking and legal application windows.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------- DASHBOARD COMPONENT -----------------
+    function DashboardPage({ navigateTo }) {
+      const [stats, setStats] = useState(null);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        fetch('/api/v1/stats')
+          .then(res => res.json())
+          .then(data => {
+            setStats(data);
+            setLoading(false);
+          })
+          .catch(err => {
+            console.error(err);
+            setLoading(false);
+          });
+      }, []);
+
+      if (loading) {
+        return (
+          <div className="max-w-5xl mx-auto px-4 py-20 text-center">
+            <div className="w-10 h-10 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-sm text-slate-500 mt-3">Loading farm analytics...</p>
+          </div>
+        );
+      }
+
+      const totalScans = stats?.total_scans || 0;
+      const healthyCount = stats?.healthy_count || 0;
+      const diseasedCount = stats?.diseased_count || 0;
+      const healthyPct = stats?.healthy_percentage || 0;
+      const cropDist = stats?.crop_distribution || [];
+      const diseaseDist = stats?.disease_distribution || [];
+      const recentActivity = stats?.recent_activity || [];
+
+      return (
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+          <div>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Farm Diagnostics Dashboard</h1>
+            <p className="text-slate-600 text-sm mt-1">Live aggregate statistics calculated from recorded field leaf inspections.</p>
+          </div>
+
+          {/* Metric Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              { label: 'Total Leaf Scans', val: totalScans, sub: 'All-time historical scans', icon: 'camera' },
+              { label: 'Healthy Foliage', val: healthyCount, sub: `${healthyPct}% of total scans`, icon: 'checkCircle' },
+              { label: 'Diseased Detections', val: diseasedCount, sub: 'Action required', icon: 'alertTriangle' },
+              { label: 'Crops Monitored', val: cropDist.length, sub: 'Active commodity profiles', icon: 'leaf' },
+            ].map(card => (
+              <div key={card.label} className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                  <span>{card.label}</span>
+                  <Icon name={card.icon} className="w-4 h-4 text-brand-600" />
+                </div>
+                <div className="text-3xl font-extrabold text-slate-900 font-mono">{card.val}</div>
+                <div className="text-xs text-slate-500">{card.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {totalScans === 0 ? (
+            <div className="p-12 text-center rounded-3xl bg-white border border-slate-200 space-y-4">
+              <Icon name="activity" className="w-12 h-12 text-slate-300 mx-auto" />
+              <h3 className="text-lg font-bold text-slate-800">No Scan Records Found Yet</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Run your first leaf diagnosis to start tracking farm health trends and disease distributions.
+              </p>
+              <button
+                onClick={() => navigateTo('detect')}
+                className="px-5 py-2.5 rounded-xl bg-brand-600 text-white font-bold text-xs"
+              >
+                Scan First Leaf
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Crop Distribution Chart */}
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Scans by Crop</h3>
+                <div className="space-y-3">
+                  {cropDist.map(c => {
+                    const pct = totalScans > 0 ? (c.total_scans / totalScans * 100).toFixed(0) : 0;
+                    return (
+                      <div key={c.crop} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs font-medium">
+                          <span className="text-slate-800">{c.crop}</span>
+                          <span className="text-slate-500 font-mono">{c.total_scans} scans ({pct}%)</span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden flex">
+                          <div
+                            className="bg-emerald-500 h-full"
+                            style={{ width: `${(c.healthy_scans / (c.total_scans || 1)) * 100}%` }}
+                            title={`Healthy: ${c.healthy_scans}`}
+                          />
+                          <div
+                            className="bg-amber-500 h-full"
+                            style={{ width: `${(c.diseased_scans / (c.total_scans || 1)) * 100}%` }}
+                            title={`Diseased: ${c.diseased_scans}`}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-4 text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-emerald-500 rounded-sm" /> Healthy</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-amber-500 rounded-sm" /> Diseased</span>
+                </div>
+              </div>
+
+              {/* Disease Frequency Breakdown */}
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Most Frequent Pathogens</h3>
+                {diseaseDist.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-6 text-center">No diseased records recorded yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {diseaseDist.map((d, i) => (
+                      <div key={i} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                        <div>
+                          <span className="font-bold text-slate-800">{d.disease_name}</span>
+                          <span className="text-slate-500 block text-[11px]">{d.crop}</span>
+                        </div>
+                        <span className="font-mono font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
+                          {d.count} {d.count === 1 ? 'case' : 'cases'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Recent Activity Table */}
+          {recentActivity.length > 0 && (
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Recent Field Scans</h3>
+                <button
+                  onClick={() => navigateTo('history')}
+                  className="text-xs font-semibold text-brand-700 hover:text-brand-800"
+                >
+                  View All History →
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-600">
+                  <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider text-[10px] font-bold">
+                    <tr>
+                      <th className="py-2.5 px-3 rounded-l-lg">Leaf</th>
+                      <th className="py-2.5 px-3">Crop</th>
+                      <th className="py-2.5 px-3">Condition</th>
+                      <th className="py-2.5 px-3">Confidence</th>
+                      <th className="py-2.5 px-3">Status</th>
+                      <th className="py-2.5 px-3 rounded-r-lg text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {recentActivity.map(scan => (
+                      <tr key={scan.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-2.5 px-3">
+                          <img
+                            src={scan.thumbnail_url}
+                            alt=""
+                            className="w-9 h-9 rounded-lg object-cover border border-slate-200"
+                          />
+                        </td>
+                        <td className="py-2.5 px-3 font-medium text-slate-800">{scan.crop}</td>
+                        <td className="py-2.5 px-3 font-bold text-slate-900">{scan.disease_name}</td>
+                        <td className="py-2.5 px-3 font-mono">{(scan.confidence * 100).toFixed(1)}%</td>
+                        <td className="py-2.5 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            scan.is_healthy ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {scan.is_healthy ? 'Healthy' : 'Diseased'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right">
+                          <button
+                            onClick={() => navigateTo('results', scan.id)}
+                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px]"
+                          >
+                            Dossier
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ----------------- HISTORY PAGE COMPONENT -----------------
+    function HistoryPage({ navigateTo }) {
+      const [items, setItems] = useState([]);
+      const [total, setTotal] = useState(0);
+      const [loading, setLoading] = useState(true);
+      const [searchTerm, setSearchTerm] = useState('');
+      const [filterCrop, setFilterCrop] = useState('');
+      const [filterStatus, setFilterStatus] = useState('');
+
+      const fetchHistory = () => {
+        setLoading(true);
+        const query = new URLSearchParams();
+        if (searchTerm) query.set('search', searchTerm);
+        if (filterCrop) query.set('crop', filterCrop);
+        if (filterStatus === 'healthy') query.set('is_healthy', 'true');
+        if (filterStatus === 'diseased') query.set('is_healthy', 'false');
+
+        fetch(`/api/v1/history?${query.toString()}`)
+          .then(res => res.json())
+          .then(data => {
+            setItems(data.items || []);
+            setTotal(data.total || 0);
+            setLoading(false);
+          })
+          .catch(err => {
+            console.error(err);
+            setLoading(false);
+          });
+      };
+
+      useEffect(() => {
+        fetchHistory();
+      }, [filterCrop, filterStatus]);
+
+      const deleteItem = async (e, id) => {
+        e.stopPropagation();
+        if (!confirm("Are you sure you want to delete this scan record?")) return;
+        try {
+          await fetch(`/api/v1/history/${id}`, { method: 'DELETE' });
+          fetchHistory();
+        } catch (err) {
+          alert("Failed to delete record.");
+        }
+      };
+
+      const clearAll = async () => {
+        if (!confirm("Warning: This will delete ALL scan history. Continue?")) return;
+        try {
+          await fetch('/api/v1/history', { method: 'DELETE' });
+          fetchHistory();
+        } catch (err) {
+          alert("Failed to clear history.");
+        }
+      };
+
+      return (
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Prediction History</h1>
+              <p className="text-slate-600 text-sm mt-1">Archived leaf inspection records ({total} total)</p>
+            </div>
+            {total > 0 && (
+              <button
+                onClick={clearAll}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 border border-red-200 self-start sm:self-auto"
+              >
+                Clear All History
+              </button>
+            )}
+          </div>
+
+          {/* Search & Filters */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Icon name="search" className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+              <input
+                type="text"
+                placeholder="Search by crop or disease name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && fetchHistory()}
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700"
+              >
+                <option value="">All Health Statuses</option>
+                <option value="healthy">Healthy Foliage</option>
+                <option value="diseased">Diseased</option>
+              </select>
+
+              <button
+                onClick={fetchHistory}
+                className="px-4 py-2 bg-brand-600 text-white rounded-xl text-xs font-bold hover:bg-brand-700 transition-colors"
+              >
+                Search
+              </button>
+            </div>
+          </div>
+
+          {/* History Grid */}
+          {loading ? (
+            <div className="py-20 text-center text-xs text-slate-500">Loading history...</div>
+          ) : items.length === 0 ? (
+            <div className="p-12 text-center rounded-3xl bg-white border border-slate-200 space-y-3">
+              <Icon name="clock" className="w-10 h-10 text-slate-300 mx-auto" />
+              <h3 className="text-base font-bold text-slate-800">No History Records Found</h3>
+              <p className="text-xs text-slate-500">Perform a leaf diagnosis to generate persistent records.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {items.map(item => (
+                <div
+                  key={item.id}
+                  onClick={() => navigateTo('results', item.id)}
+                  className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-brand-400 cursor-pointer transition-all overflow-hidden flex flex-col"
+                >
+                  <div className="relative h-44 bg-slate-100 overflow-hidden flex items-center justify-center">
+                    <img
+                      src={item.image_url || item.thumbnail_url}
+                      alt={item.display_name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <span className={`absolute top-3 left-3 px-2 py-0.5 rounded text-[10px] font-bold ${
+                      item.is_healthy ? 'bg-emerald-600 text-white' : 'bg-amber-600 text-white'
+                    }`}>
+                      {item.is_healthy ? 'Healthy' : 'Diseased'}
+                    </span>
+                    <button
+                      onClick={(e) => deleteItem(e, item.id)}
+                      className="absolute top-3 right-3 p-1.5 rounded-full bg-slate-900/60 text-white hover:bg-red-600 transition-colors"
+                      title="Delete record"
+                    >
+                      <Icon name="trash2" className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="p-4 flex-1 flex flex-col justify-between space-y-2">
+                    <div>
+                      <span className="text-[11px] text-slate-500 font-medium">{item.crop}</span>
+                      <h4 className="text-sm font-bold text-slate-900 group-hover:text-brand-700 transition-colors leading-tight">
+                        {item.disease_name}
+                      </h4>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono pt-2 border-t border-slate-100">
+                      <span>{(item.confidence * 100).toFixed(1)}% conf</span>
+                      <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ----------------- KNOWLEDGE PAGE COMPONENT -----------------
+    function KnowledgePage({ crops }) {
+      const [diseases, setDiseases] = useState([]);
+      const [selectedCrop, setSelectedCrop] = useState('');
+      const [searchQuery, setSearchQuery] = useState('');
+      const [loading, setLoading] = useState(true);
+      const [selectedDisease, setSelectedDisease] = useState(null);
+
+      const fetchDiseases = () => {
+        setLoading(true);
+        const query = new URLSearchParams();
+        if (selectedCrop) query.set('crop', selectedCrop);
+        if (searchQuery) query.set('query', searchQuery);
+
+        fetch(`/api/v1/diseases?${query.toString()}`)
+          .then(res => res.json())
+          .then(data => {
+            setDiseases(data);
+            setLoading(false);
+          })
+          .catch(err => {
+            console.error(err);
+            setLoading(false);
+          });
+      };
+
+      useEffect(() => {
+        fetchDiseases();
+      }, [selectedCrop]);
+
+      return (
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+          <div>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Plant Pathology Knowledge Base</h1>
+            <p className="text-slate-600 text-sm mt-1">Curated agronomic reference sheets covering 38 plant conditions across 14 crops.</p>
+          </div>
+
+          {/* Search & Crop Filter Pills */}
+          <div className="space-y-4">
+            <div className="relative">
+              <Icon name="search" className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+              <input
+                type="text"
+                placeholder="Search conditions, symptoms, or pathogens (e.g. blight, rust, virus)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && fetchDiseases()}
+                className="w-full pl-10 pr-24 py-3 bg-white border border-slate-200 rounded-2xl text-sm text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+              <button
+                onClick={fetchDiseases}
+                className="absolute right-2 top-2 px-4 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-colors"
+              >
+                Search
+              </button>
+            </div>
+
+            {/* Horizontal Crop Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 custom-scrollbar">
+              <button
+                onClick={() => setSelectedCrop('')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${
+                  selectedCrop === ''
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                All Crops ({crops.length || 14})
+              </button>
+              {crops.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setSelectedCrop(c)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${
+                    selectedCrop === c
+                      ? 'bg-brand-600 text-white'
+                      : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Diseases Grid */}
+          {loading ? (
+            <div className="py-20 text-center text-xs text-slate-500">Loading knowledge base...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {diseases.map((d, i) => (
+                <div
+                  key={i}
+                  onClick={() => setSelectedDisease(d)}
+                  className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-brand-500 hover:shadow-md cursor-pointer transition-all flex flex-col justify-between space-y-3"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                        {d.crop}
+                      </span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                        d.is_healthy ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {d.is_healthy ? 'Healthy' : 'Diseased'}
+                      </span>
+                    </div>
+
+                    <h3 className="text-base font-bold text-slate-900">{d.disease_name}</h3>
+                    {d.pathogen && (
+                      <p className="text-[11px] text-slate-500 font-mono">{d.pathogen}</p>
+                    )}
+                    <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                      {(d.common_symptoms && d.common_symptoms[0]) || 'Click to view complete management profile.'}
+                    </p>
+                  </div>
+
+                  <span className="text-xs font-semibold text-brand-700 pt-2 border-t border-slate-100 block">
+                    Read Treatment Dossier →
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Disease Detail Modal */}
+          {selectedDisease && (
+            <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 sm:p-8 space-y-6 shadow-2xl custom-scrollbar">
+                <div className="flex items-start justify-between border-b border-slate-200 pb-4">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-brand-600">{selectedDisease.crop}</span>
+                    <h2 className="text-2xl font-extrabold text-slate-900 mt-0.5">{selectedDisease.disease_name}</h2>
+                    {selectedDisease.pathogen && (
+                      <p className="text-xs text-slate-500 font-mono mt-1">{selectedDisease.pathogen}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setSelectedDisease(null)}
+                    className="p-2 rounded-full hover:bg-slate-100 text-slate-500"
+                  >
+                    <Icon name="x" className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Modal Sections */}
+                <div className="space-y-5 text-sm">
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-2">Common Symptoms</h4>
+                    <ul className="space-y-1.5 text-xs text-slate-700">
+                      {(selectedDisease.common_symptoms || []).map((s, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-brand-600 font-bold">•</span>
+                          <span>{s}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-2">Contributing Factors</h4>
+                    <ul className="space-y-1.5 text-xs text-slate-700">
+                      {(selectedDisease.contributing_factors || []).map((f, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-amber-600 font-bold">•</span>
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-2">Cultural Prevention</h4>
+                    <ul className="space-y-1.5 text-xs text-slate-700">
+                      {(selectedDisease.prevention_practices || []).map((p, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <Icon name="checkCircle" className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                          <span>{p}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-2">General Management</h4>
+                    <ul className="space-y-1.5 text-xs text-slate-700">
+                      {(selectedDisease.general_management || []).map((m, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-brand-600 font-bold">✓</span>
+                          <span>{m}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1">
+                    <span className="font-bold text-slate-900 block">When to Contact an Expert:</span>
+                    <span>{selectedDisease.expert_guidance}</span>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-200 pt-4 flex justify-end">
+                  <button
+                    onClick={() => setSelectedDisease(null)}
+                    className="px-5 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold"
+                  >
+                    Close Dossier
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Mount Application
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
